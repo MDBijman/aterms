@@ -9,7 +9,7 @@ use nom::{
     error::{ParseError, VerboseError},
     multi::{fold_many0, separated_list0},
     number::complete::double,
-    sequence::{delimited, preceded, separated_pair},
+    sequence::{delimited, pair, preceded, separated_pair, tuple},
     IResult, Parser,
 };
 use std::fmt;
@@ -50,116 +50,126 @@ impl PartialEq for Annotations {
 
 #[derive(Debug, Clone, Hash)]
 pub enum Term {
-    RTerm(RTerm, Annotations),
-    STerm(STerm, Annotations),
-    NTerm(NTerm, Annotations),
-    TTerm(TTerm, Annotations),
-    LTerm(LTerm, Annotations),
+    RTerm(RTerm),
+    STerm(STerm),
+    NTerm(NTerm),
+    TTerm(TTerm),
+    LTerm(LTerm),
 }
 
 impl PartialEq for Term {
     fn eq(&self, other: &Term) -> bool {
         match (self, other) {
-            (Term::RTerm(lr, la), Term::RTerm(rr, ra)) => lr == rr && la == ra,
-            (Term::STerm(lr, la), Term::STerm(rr, ra)) => lr == rr && la == ra,
-            (Term::NTerm(lr, la), Term::NTerm(rr, ra)) => lr == rr && la == ra,
-            (Term::TTerm(lr, la), Term::TTerm(rr, ra)) => lr == rr && la == ra,
-            (Term::LTerm(lr, la), Term::LTerm(rr, ra)) => lr == rr && la == ra,
+            (Term::RTerm(lr), Term::RTerm(rr)) => lr == rr,
+            (Term::STerm(lr), Term::STerm(rr)) => lr == rr,
+            (Term::NTerm(lr), Term::NTerm(rr)) => lr == rr,
+            (Term::TTerm(lr), Term::TTerm(rr)) => lr == rr,
+            (Term::LTerm(lr), Term::LTerm(rr)) => lr == rr,
             (_, _) => false,
         }
     }
 }
 
 impl Term {
-    pub fn new_rec_term(n: &str, t: Vec<Term>) -> Term {
-        Term::RTerm(
-            RTerm {
-                constructor: n.to_string(),
-                terms: t,
-            },
-            Annotations::empty(),
-        )
-    }
-
     pub fn new_anot_rec_term(n: &str, t: Vec<Term>, a: Vec<Term>) -> Term {
-        Term::RTerm(
-            RTerm {
-                constructor: n.to_string(),
-                terms: t,
-            },
-            Annotations::from(a),
-        )
+        Term::RTerm(RTerm {
+            constructor: n.to_string(),
+            terms: t,
+            annotations: Annotations::from(a),
+        })
     }
 
-    pub fn new_anot_string_term(n: &str, anots: Vec<Term>) -> Term {
-        Term::STerm(
-            STerm {
-                value: n.to_string(),
-            },
-            Annotations::from(anots),
-        )
+    pub fn new_rec_term(n: &str, t: Vec<Term>) -> Term {
+        Term::RTerm(RTerm {
+            constructor: n.to_string(),
+            terms: t,
+            annotations: Annotations::empty(),
+        })
+    }
+
+    pub fn new_anot_string_term(n: &str, a: Vec<Term>) -> Term {
+        Term::STerm(STerm {
+            value: n.to_string(),
+            annotations: Annotations::from(a),
+        })
     }
 
     pub fn new_string_term(n: &str) -> Term {
-        Term::STerm(
-            STerm {
-                value: n.to_string(),
-            },
-            Annotations::empty(),
-        )
+        Term::STerm(STerm {
+            value: n.to_string(),
+            annotations: Annotations::empty(),
+        })
     }
 
-    pub fn new_anot_number_term(n: f64, anots: Vec<Term>) -> Term {
-        Term::NTerm(NTerm { value: n }, Annotations::from(anots))
+    pub fn new_anot_number_term(n: f64, a: Vec<Term>) -> Term {
+        Term::NTerm(NTerm {
+            value: n,
+            annotations: Annotations::from(a),
+        })
     }
 
     pub fn new_number_term(n: f64) -> Term {
-        Term::NTerm(NTerm { value: n }, Annotations::empty())
+        Term::NTerm(NTerm {
+            value: n,
+            annotations: Annotations::empty(),
+        })
     }
 
-    pub fn new_anot_list_term(t: Vec<Term>, anots: Vec<Term>) -> Term {
-        Term::LTerm(LTerm { terms: t }, Annotations::from(anots))
+    pub fn new_anot_list_term(t: Vec<Term>, a: Vec<Term>) -> Term {
+        Term::LTerm(LTerm {
+            terms: t,
+            annotations: Annotations::from(a),
+        })
     }
 
     pub fn new_list_term(t: Vec<Term>) -> Term {
-        Term::LTerm(LTerm { terms: t }, Annotations::empty())
+        Term::LTerm(LTerm {
+            terms: t,
+            annotations: Annotations::empty(),
+        })
     }
 
-    pub fn new_anot_tuple_term(t: Vec<Term>, anots: Vec<Term>) -> Term {
-        Term::TTerm(TTerm { terms: t }, Annotations::from(anots))
+    pub fn new_anot_tuple_term(t: Vec<Term>, a: Vec<Term>) -> Term {
+        Term::TTerm(TTerm {
+            terms: t,
+            annotations: Annotations::from(a),
+        })
     }
 
     pub fn new_tuple_term(t: Vec<Term>) -> Term {
-        Term::TTerm(TTerm { terms: t }, Annotations::empty())
+        Term::TTerm(TTerm {
+            terms: t,
+            annotations: Annotations::empty(),
+        })
     }
 
     pub fn get_annotations(&self) -> &Annotations {
         match self {
-            Term::RTerm(_, a) => a,
-            Term::STerm(_, a) => a,
-            Term::NTerm(_, a) => a,
-            Term::TTerm(_, a) => a,
-            Term::LTerm(_, a) => a,
+            Term::RTerm(r) => &r.annotations,
+            Term::STerm(s) => &s.annotations,
+            Term::NTerm(n) => &n.annotations,
+            Term::TTerm(t) => &t.annotations,
+            Term::LTerm(l) => &l.annotations,
         }
     }
 
     pub fn add_annotation(&mut self, annotation: Term) {
         match self {
-            Term::RTerm(_, a) => a.elems.push(annotation),
-            Term::STerm(_, a) => a.elems.push(annotation),
-            Term::NTerm(_, a) => a.elems.push(annotation),
-            Term::TTerm(_, a) => a.elems.push(annotation),
-            Term::LTerm(_, a) => a.elems.push(annotation),
+            Term::RTerm(a) => a.annotations.elems.push(annotation),
+            Term::STerm(a) => a.annotations.elems.push(annotation),
+            Term::NTerm(a) => a.annotations.elems.push(annotation),
+            Term::TTerm(a) => a.annotations.elems.push(annotation),
+            Term::LTerm(a) => a.annotations.elems.push(annotation),
         }
     }
 
     pub fn clear_annotations(&mut self) {
         match self {
-            Term::RTerm(_, a) => a.elems.clear(),
-            Term::STerm(_, a) => a.elems.clear(),
-            Term::NTerm(_, a) => a.elems.clear(),
-            Term::TTerm(_, a) => a.elems.clear(),
-            Term::LTerm(_, a) => a.elems.clear(),
+            Term::RTerm(a) => a.annotations.elems.clear(),
+            Term::STerm(a) => a.annotations.elems.clear(),
+            Term::NTerm(a) => a.annotations.elems.clear(),
+            Term::TTerm(a) => a.annotations.elems.clear(),
+            Term::LTerm(a) => a.annotations.elems.clear(),
         }
     }
 }
@@ -169,6 +179,7 @@ impl Term {
 pub struct RTerm {
     pub constructor: String,
     pub terms: Vec<Term>,
+    pub annotations: Annotations,
 }
 
 impl PartialEq for RTerm {
@@ -181,6 +192,7 @@ impl PartialEq for RTerm {
 #[derive(Debug, Clone, Hash)]
 pub struct STerm {
     pub value: String,
+    pub annotations: Annotations,
 }
 
 impl PartialEq for STerm {
@@ -193,6 +205,7 @@ impl PartialEq for STerm {
 #[derive(Debug, Clone)]
 pub struct NTerm {
     pub value: f64,
+    pub annotations: Annotations,
 }
 
 impl PartialEq for NTerm {
@@ -225,6 +238,7 @@ impl Hash for NTerm {
 #[derive(Debug, Clone, Hash)]
 pub struct TTerm {
     pub terms: Vec<Term>,
+    pub annotations: Annotations,
 }
 
 impl PartialEq for TTerm {
@@ -235,7 +249,10 @@ impl PartialEq for TTerm {
 
 impl TTerm {
     pub fn new() -> TTerm {
-        TTerm { terms: Vec::new() }
+        TTerm {
+            terms: Vec::new(),
+            annotations: Annotations::empty(),
+        }
     }
 }
 
@@ -243,6 +260,7 @@ impl TTerm {
 #[derive(Debug, Clone, Hash)]
 pub struct LTerm {
     pub terms: Vec<Term>,
+    pub annotations: Annotations,
 }
 
 impl PartialEq for LTerm {
@@ -253,12 +271,10 @@ impl PartialEq for LTerm {
 
 impl LTerm {
     pub fn tail(&self) -> Term {
-        Term::LTerm(
-            LTerm {
-                terms: self.terms[1..].iter().cloned().collect::<Vec<_>>(),
-            },
-            Annotations::empty(),
-        )
+        Term::LTerm(LTerm {
+            terms: self.terms[1..].iter().cloned().collect::<Vec<_>>(),
+            annotations: Annotations::empty(),
+        })
     }
 
     pub fn head(&self) -> Term {
@@ -323,7 +339,7 @@ fn character(input: &str) -> ParseResult<char> {
     }
 }
 
-pub fn string_literal(i: &str) -> ParseResult<String> {
+pub fn parse_string_literal(i: &str) -> ParseResult<String> {
     delimited(
         char('"'),
         fold_many0(character, String::new(), |mut string, c| {
@@ -334,77 +350,87 @@ pub fn string_literal(i: &str) -> ParseResult<String> {
     )(i)
 }
 
-type ParseResult<'a, O> = IResult<&'a str, O, VerboseError<&'a str>>;
+type MyParseError<'a> = VerboseError<&'a str>;
+type ParseResult<'a, O> = IResult<&'a str, O, MyParseError<'a>>;
 
-// Parsers
+/*
+* Parsers
+*/
 
-pub fn parse_number(input: &str) -> ParseResult<Term> {
-    let (input, res) = double(input)?;
-    Ok((input, Term::new_number_term(res)))
+pub fn parse_number_term(i: &str) -> ParseResult<Term> {
+    map(ws(double), |d| Term::new_number_term(d))(i)
 }
 
-pub fn parse_string(i: &str) -> ParseResult<Term> {
-    map(string_literal, |s| Term::new_string_term(&s))(i)
+pub fn parse_string_term(i: &str) -> ParseResult<Term> {
+    map(ws(parse_string_literal), |s| Term::new_string_term(&s))(i)
 }
 
-pub fn parse_tuple(i: &str) -> ParseResult<Term> {
+pub fn parse_tuple_term(i: &str) -> ParseResult<Term> {
     map(
         delimited(
             char('('),
-            ws(separated_list0(ws(char(',')), parse_any_term)),
+            ws(separated_list0(ws(char(',')), parse_term)),
             char(')'),
         ),
         |ts| Term::new_tuple_term(ts),
     )(i)
 }
 
-pub fn parse_list(input: &str) -> ParseResult<Term> {
-    let (input, r) = delimited(
-        char('['),
-        ws(separated_list0(ws(tag(",")), parse_any_term)),
-        char(']'),
-    )(input)?;
-    let (input, maybe_annots) = opt(delimited(
-        char('{'),
-        ws(separated_list0(ws(tag(",")), parse_any_term)),
-        char('}'),
-    ))(input)?;
-    match maybe_annots {
-        Some(annots) => Ok((input, Term::new_anot_list_term(r, annots))),
-        None => Ok((input, Term::new_list_term(r))),
-    }
+pub fn parse_list_term(i: &str) -> ParseResult<Term> {
+    map(
+        pair(
+            delimited(
+                ws(char('[')),
+                ws(separated_list0(ws(char(',')), parse_term)),
+                ws(char(']')),
+            ),
+            opt(delimited(
+                ws(char('{')),
+                ws(separated_list0(ws(char(',')), parse_term)),
+                ws(char('}')),
+            )),
+        ),
+        |(list, maybe_annots)| match maybe_annots {
+            Some(annots) => Term::new_anot_list_term(list, annots),
+            None => Term::new_list_term(list),
+        },
+    )(i)
 }
 
-pub fn parse_term(input: &str) -> ParseResult<Term> {
-    let (input, con) = take_while1(char::is_alphanumeric)(input)?;
-    let (input, r) = delimited(
-        char('('),
-        ws(separated_list0(ws(tag(",")), parse_any_term)),
-        char(')'),
-    )(input)?;
-    let (input, maybe_annots) = opt(delimited(
-        char('{'),
-        ws(separated_list0(ws(tag(",")), parse_any_term)),
-        char('}'),
-    ))(input)?;
-    match maybe_annots {
-        Some(annots) => Ok((input, Term::new_anot_rec_term(&con.to_string(), r, annots))),
-        None => Ok((input, Term::new_rec_term(&con.to_string(), r))),
-    }
+pub fn parse_recursive_term(i: &str) -> ParseResult<Term> {
+    map(
+        tuple((
+            take_while1(char::is_alphanumeric),
+            delimited(
+                ws(char('(')),
+                ws(separated_list0(ws(char(',')), parse_term)),
+                ws(char(')')),
+            ),
+            opt(delimited(
+                ws(char('{')),
+                ws(separated_list0(ws(char(',')), parse_term)),
+                ws(char('}')),
+            )),
+        )),
+        |(constructor, subterms, maybe_annots)| match maybe_annots {
+            Some(annots) => Term::new_anot_rec_term(constructor, subterms, annots),
+            None => Term::new_rec_term(constructor, subterms),
+        },
+    )(i)
 }
 
-pub fn parse_any_term(i: &str) -> ParseResult<Term> {
+pub fn parse_term(i: &str) -> ParseResult<Term> {
     alt((
-        parse_term,
-        parse_list,
-        parse_string,
-        parse_number,
-        parse_tuple,
+        parse_recursive_term,
+        parse_list_term,
+        parse_string_term,
+        parse_number_term,
+        parse_tuple_term,
     ))(i)
 }
 
 pub fn parse_term_from_string(i: &str) -> Result<Term, String> {
-    let r = parse_any_term(i);
+    let r = parse_term(i);
 
     match r {
         Ok((_, t)) => Ok(t),
@@ -418,7 +444,7 @@ pub fn parse_term_from_file(path: &String) -> Result<Term, String> {
 }
 
 /*
-* Display implementation
+* Display implementations
 */
 
 impl fmt::Display for Annotations {
@@ -445,11 +471,11 @@ impl fmt::Display for Annotations {
 impl fmt::Display for Term {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Term::RTerm(rt, a) => write!(f, "{}{}", rt, a),
-            Term::STerm(st, a) => write!(f, "{}{}", st, a),
-            Term::NTerm(nt, a) => write!(f, "{}{}", nt, a),
-            Term::TTerm(nt, a) => write!(f, "{}{}", nt, a),
-            Term::LTerm(lt, a) => write!(f, "{}{}", lt, a),
+            Term::RTerm(rt) => write!(f, "{}", rt),
+            Term::STerm(st) => write!(f, "{}", st),
+            Term::NTerm(nt) => write!(f, "{}", nt),
+            Term::TTerm(tt) => write!(f, "{}", tt),
+            Term::LTerm(lt) => write!(f, "{}", lt),
         }
     }
 }
@@ -539,5 +565,75 @@ impl fmt::Display for LTerm {
                 )
             }
         }
+    }
+}
+
+pub fn ext_parse_recursive_term<'a, F, G, O, E: ParseError<&'a str>>(
+    f1: F,
+    o1: G,
+) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+where
+    F: Parser<&'a str, O, E> + Clone,
+    G: Fn(&str, Vec<O>, Vec<O>) -> O,
+{
+    move |i| {
+        map(
+            tuple((
+                take_while1(char::is_alphanumeric),
+                delimited(
+                    char('('),
+                    ws(separated_list0(ws(char(',')), f1.clone())),
+                    char(')'),
+                ),
+                delimited(char('{'), ws(separated_list0(ws(char(',')), f1.clone())), char('}')),
+            )),
+            |(con, ts, annots)| o1(con, ts, annots),
+        )(i)
+    }
+}
+
+pub fn ext_parse_tuple_term<'a, F, G, O, E: ParseError<&'a str>>(
+    f1: F,
+    o1: G,
+) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+where
+    F: Parser<&'a str, O, E> + Clone,
+    G: Fn(Vec<O>, Vec<O>) -> O,
+{
+    move |i| {
+        map(
+            pair(
+                delimited(
+                    char('('),
+                    ws(separated_list0(ws(char(',')), f1.clone())),
+                    char(')'),
+                ),
+                delimited(char('{'), ws(separated_list0(ws(char(',')), f1.clone())), char('}')),
+            ),
+            |(ts, annots)| o1(ts, annots),
+        )(i)
+    }
+}
+
+pub fn ext_parse_list_term<'a, F, G, O, E: ParseError<&'a str>>(
+    f1: F,
+    o1: G,
+) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+where
+    F: Parser<&'a str, O, E> + Clone,
+    G: Fn(Vec<O>, Vec<O>) -> O,
+{
+    move |i| {
+        map(
+            pair(
+                delimited(
+                    char('['),
+                    ws(separated_list0(ws(char(',')), f1.clone())),
+                    char(']'),
+                ),
+                delimited(char('{'), ws(separated_list0(ws(char(',')), f1.clone())), char('}')),
+            ),
+            |(ts, annots)| o1(ts, annots),
+        )(i)
     }
 }
