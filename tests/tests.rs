@@ -1,4 +1,4 @@
-use aterms::*;
+use aterms::base::*;
 
 #[test]
 fn test_parse() {
