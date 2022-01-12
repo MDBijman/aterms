@@ -1,15 +1,6 @@
 use core::fmt::Write;
 use indenter::{indented, Format};
-use nom::{
-    branch::alt,
-    character::complete::char,
-    combinator::{map, opt},
-    error::VerboseError,
-    multi::separated_list0,
-    number::complete::double,
-    sequence::{delimited, pair, tuple},
-    IResult,
-};
+use nom::{branch::alt, error::VerboseError, IResult};
 use std::fmt;
 use std::fs;
 use std::hash::{Hash, Hasher};
@@ -351,10 +342,14 @@ impl fmt::Display for RTerm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.terms.len() {
             0 => {
-                write!(f, "{}()", self.constructor)
+                write!(f, "{}(){}", self.constructor, self.annotations)
             }
             1 => {
-                write!(f, "{}({})", self.constructor, self.terms[0])
+                write!(
+                    f,
+                    "{}({}){}",
+                    self.constructor, self.terms[0], self.annotations
+                )
             }
             _ => {
                 write!(f, "{}(\n  ", self.constructor)?;
@@ -371,8 +366,9 @@ impl fmt::Display for RTerm {
                 out += ")";
                 write!(
                     indented(f).with_format(Format::Uniform { indentation: "  " }),
-                    "{}",
-                    out
+                    "{}{}",
+                    out,
+                    self.annotations
                 )
             }
         }
@@ -381,13 +377,13 @@ impl fmt::Display for RTerm {
 
 impl fmt::Display for STerm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.value)
+        write!(f, "{:?}{}", self.value, self.annotations)
     }
 }
 
 impl fmt::Display for NTerm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}{}", self.value, self.annotations)
     }
 }
 
@@ -403,15 +399,15 @@ impl fmt::Display for TTerm {
 
             write!(f, "{}", term)?;
         }
-        write!(f, ")")
+        write!(f, "){}", self.annotations)
     }
 }
 
 impl fmt::Display for LTerm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.terms.len() {
-            0 => write!(f, "[]"),
-            1 => write!(f, "[{}]", self.terms[0]),
+            0 => write!(f, "[]{}", self.annotations),
+            1 => write!(f, "[{}]{}", self.terms[0], self.annotations),
             _ => {
                 write!(f, "[\n  ")?;
                 let mut out = String::new();
@@ -427,8 +423,9 @@ impl fmt::Display for LTerm {
                 out += "]";
                 write!(
                     indented(f).with_format(Format::Uniform { indentation: "  " }),
-                    "{}",
-                    out
+                    "{}{}",
+                    out,
+                    self.annotations
                 )
             }
         }
