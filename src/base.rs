@@ -163,6 +163,46 @@ impl Term {
             Term::LTerm(a) => a.annotations.elems.clear(),
         }
     }
+
+    pub fn as_rterm(&self) -> Option<&RTerm> {
+        if let Self::RTerm(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_sterm(&self) -> Option<&STerm> {
+        if let Self::STerm(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_nterm(&self) -> Option<&NTerm> {
+        if let Self::NTerm(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_tterm(&self) -> Option<&TTerm> {
+        if let Self::TTerm(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_lterm(&self) -> Option<&LTerm> {
+        if let Self::LTerm(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }
 
 // Recursive Term
